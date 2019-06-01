@@ -71,7 +71,28 @@ stormData_PerEvType %>% arrange(desc(TOTAL_FATALITIES)) %>% top_n(3)
 You can see the top 3 match which EVTYPE in TORNADO, EXCESSIVE HEAT and FLASH FLOOD. See more in Results section.
 
 #### Across the United States, which types of events have the greatest economic consequences?
+You can see the column *PROPDMG* in database, so first summarise total of this column per EVTYPE, and then select the EVTYPE which max total.
 
+Before we will convert PROPDMG column to real value which indicated by *PROPDMGEXP* column (B,M,K)
+
+```{r}
+stormData$PROPDMGEXP <- as.factor(stormData$PROPDMGEXP)
+stormData_PerEvType2 <- stormData %>% 
+        mutate(
+                PROPDMG = ifelse(PROPDMGEXP == 'B', PROPDMG * 1000000000, 
+                                 ifelse(PROPDMGEXP == 'M', PROPDMG * 1000000, 
+                                        ifelse(PROPDMGEXP == 'K', PROPDMG * 1000, PROPDMG)))) %>%
+        group_by(EVTYPE) %>% 
+        summarise(TOTAL_PROPDMG=sum(PROPDMG))
+summary(stormData_PerEvType2)
+```
+
+Select top 1 row arrange by *TOTAL_PROPDMG* descending
+```{r warning=FALSE, message=FALSE}
+stormData_PerEvType2 %>% arrange(desc(TOTAL_PROPDMG)) %>% top_n(1)
+```
+
+You can see the FLOOD event is greatest economic consequences. See more in Results section.
 
 ## Results
 ### Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
@@ -87,6 +108,7 @@ stormData_Top3 <- stormData %>%
         mutate(YEAR = as.integer(format(BGN_DATE, "%Y"))) %>%
         group_by(EVTYPE, YEAR) %>%
         summarise(TOTAL_FATALITIES=sum(FATALITIES))
+
 ggplot(data=stormData_Top3, aes(x=YEAR, y=TOTAL_FATALITIES, group=EVTYPE)) + 
         geom_line(aes(color=EVTYPE)) + facet_wrap(.~EVTYPE, ncol = 1) + 
         scale_x_continuous(breaks=seq(1951, 2011, 10)) + 
@@ -96,3 +118,24 @@ ggplot(data=stormData_Top3, aes(x=YEAR, y=TOTAL_FATALITIES, group=EVTYPE)) +
         theme(legend.position = "none")
 ```
 
+### Across the United States, which types of events have the greatest economic consequences?
+Answer: FLOOD
+
+Plot these data to yearly chart for see more respect. Note we just show data with PROPDMGEXP is in K, M, B values.
+```{r warning=FALSE, message=FALSE, fig.align="center"}
+stormData_Flood <- stormData %>% filter(EVTYPE == 'FLOOD', PROPDMGEXP %in% c("K", "M", "B")) %>%
+        mutate(
+                YEAR = as.integer(format(BGN_DATE, "%Y")),
+                PROPDMG = ifelse(PROPDMGEXP == 'B', PROPDMG * 1000000, 
+                                 ifelse(PROPDMGEXP == 'M', PROPDMG * 1000, PROPDMG))
+                ) %>%
+        group_by(YEAR) %>% 
+        summarise(TOTAL_PROPDMG=sum(PROPDMG))
+
+ggplot(data=stormData_Flood, aes(x=YEAR, y=TOTAL_PROPDMG)) + 
+        geom_line() + 
+        labs(title="Total Property Damage by FLOOD", subtitle = "from 1950 to 2011", x="Year", y="Total Property Damage (K)") + 
+        theme_minimal(base_size = 14) + 
+        theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+        theme(legend.position = "none")
+```

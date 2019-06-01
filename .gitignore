@@ -4,3 +4,11 @@ storm_data\.csv\.bz2
 Report_cache/
 
 Report_files/
+
+\.RDataTmp
+
+\.Rhistory
+
+\.RData
+
+rsconnect/documents/Report\.Rmd/rpubs\.com/rpubs/Document\.dcf
