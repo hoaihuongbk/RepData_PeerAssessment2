@@ -1,0 +1,98 @@
+---
+title: "Explore the NOAA Storm Database"
+author: "hoaihuongbk"
+date: "June 1, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, results=FALSE, echo=FALSE}
+# Global settings
+Sys.setlocale(category = 'LC_ALL','en_US.UTF-8')
+```
+
+## Introduction
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+In this report, I focus on explore the database source and answer 2 questions:
+
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
+## Data Processing
+
+The data for this report come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size.
+
+### Download data from source
+```{r cachedChunk, cache=TRUE}
+fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(fileUrl, destfile = "storm_data.csv.bz2")
+stormData <- read.csv("storm_data.csv.bz2", stringsAsFactors = FALSE)
+```
+
+### Show structure
+```{r}
+str(stormData)
+```
+
+You can see the *EVTYPE* column is factor and *BGN_DATE* is date. We can convert them to these data types.
+
+### Convert some data type
+```{r}
+stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y %H:%M:%S")
+stormData$EVTYPE <- as.factor(stormData$EVTYPE)
+```
+
+### Answer the questions
+#### Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+You can see the column *FATALITIES* in database, so first summarise total of this column per EVTYPE, and then select the EVTYPE which max total.
+
+```{r warning=FALSE, message=FALSE}
+if(!require("dplyr")) install.packages("dplyr")
+library(dplyr)
+stormData_PerEvType <- stormData %>% 
+        group_by(EVTYPE) %>% 
+        summarise(TOTAL_FATALITIES=sum(FATALITIES))
+summary(stormData_PerEvType)
+```
+
+Select top 3 row arrange by *TOTAL_FATALITIES* descending
+
+```{r warning=FALSE, message=FALSE}
+stormData_PerEvType %>% arrange(desc(TOTAL_FATALITIES)) %>% top_n(3)
+```
+
+You can see the top 3 match which EVTYPE in TORNADO, EXCESSIVE HEAT and FLASH FLOOD. See more in Results section.
+
+#### Across the United States, which types of events have the greatest economic consequences?
+
+
+## Results
+### Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+Answer: TORNADO, EXCESSIVE HEAT and FLASH FLOOD
+
+Plot these data to yearly chart for see more respect
+
+```{r warning=FALSE, message=FALSE, fig.align="center"}
+if(!require("ggplot2")) install.packages("ggplot2")
+library(ggplot2)
+stormData_Top3 <- stormData %>%
+        filter(EVTYPE %in% c('TORNADO', 'EXCESSIVE HEAT', 'FLASH FLOOD')) %>%
+        mutate(YEAR = as.integer(format(BGN_DATE, "%Y"))) %>%
+        group_by(EVTYPE, YEAR) %>%
+        summarise(TOTAL_FATALITIES=sum(FATALITIES))
+ggplot(data=stormData_Top3, aes(x=YEAR, y=TOTAL_FATALITIES, group=EVTYPE)) + 
+        geom_line(aes(color=EVTYPE)) + facet_wrap(.~EVTYPE, ncol = 1) + 
+        scale_x_continuous(breaks=seq(1951, 2011, 10)) + 
+        labs(title="Total fatalities number per event types", subtitle = "from 1950 to 2011", x="Year", y="Total Fatalities") + 
+        theme_minimal(base_size = 14) + 
+        theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+        theme(legend.position = "none")
+```
+
